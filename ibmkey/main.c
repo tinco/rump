@@ -186,6 +186,7 @@ static uchar scankeys(void) {
 				// Port C to weak pullups
 				DDRC  = 0x00;
 				PORTC = 0xFF;
+				// fall through
 			case 0x1 ... 0x7:
 				// Scan on A
 				DDRA = data;
@@ -195,6 +196,7 @@ static uchar scankeys(void) {
 				// Port A to weak pullups
 				DDRA  = 0x00;
 				PORTA = 0xFF;
+				// fall through
 			case 0x9 ... 0xF:
 				// Scan on C
 				DDRC = data;
@@ -209,7 +211,7 @@ static uchar scankeys(void) {
 		data = PINB;
 
 		/* If a change was detected, activate debounce counter */
-		if (data ^ bitbuf[row]) {
+		if (data != bitbuf[row]) {
 			debounce = 10; 
 		}
 
@@ -266,7 +268,7 @@ static uchar scankeys(void) {
 	}
 
 	for (unsigned int i = 2; i < 8; i++) {
-		if (previousReport[i] ^ reportBuffer[i]) {
+		if (previousReport[i] != reportBuffer[i]) {
 			keysChanged++;
 		}
 	}
@@ -275,7 +277,7 @@ static uchar scankeys(void) {
       return 0;
 
 	/* Ghost-key prevention, seems to actually work! */
-	if (reportBuffer[5] ^ 0x00 && keysChanged > 1) {
+	if (reportBuffer[5] && keysChanged > 1) {
 		uchar numRows, numCols;
 
 		for (numRows = 0; activeRows; numRows++) {
