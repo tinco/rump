@@ -124,7 +124,7 @@ static uchar bitbuf[NUMROWS] = {
 
 /* The ReportBuffer contains the USB report sent to the PC */
 static uchar reportBuffer[8];    /* buffer for HID reports */
-static uchar reportCache[8];
+static uchar previousReport[8];
 static uchar idleRate;           /* in 4 ms units */
 static uchar protocolVer = 1;    /* 0 is boot protocol, 1 is report protocol */
 
@@ -156,6 +156,7 @@ static void hardwareInit(void) {
 	TCCR0 = 5;      /* timer 0 prescaler: 1024 */
 }
 
+#if 0
 static void setLED(int on) {
 	if (on) {
 		PORTD &= ~0x40;
@@ -163,14 +164,14 @@ static void setLED(int on) {
 		PORTD |= 0x40;
 	}
 }
+#endif
 
 /* This function scans the entire keyboard, debounces the keys, and
    if a key change has been found, a new report is generated, and the
    function returns true to signal the transfer of the report. */
-static uchar scankeys(void) {   
+static uchar scankeys(void) {
 	unsigned short int activeRows, activeCols;
 	uchar reportIndex = 1; /* First available report entry is 2 */
-	uchar retval = 0;
 	uchar row, data, key, keysChanged;
 	volatile uchar col, mask;
 	static uchar debounce = 5;
@@ -219,7 +220,7 @@ static uchar scankeys(void) {
 	/* Count down, but avoid underflow */
 	if (debounce > 1) {
 		debounce--;
-		return retval;
+		return 0;
 	}
 
 	activeRows = activeCols = keysChanged = 0;
@@ -257,19 +258,21 @@ static uchar scankeys(void) {
 			}
 
 			/* Only fill buffer once */
-			if (!(retval & 0x02)) {
+			if (reportIndex == sizeof(reportBuffer)) {
 				memset(reportBuffer + 2, KEY_errorRollOver, sizeof(reportBuffer) - 2);
 				/* continue decoding to get modifiers */
-				retval |= 2;
 			}
 		}
 	}
 
 	for (unsigned int i = 2; i < 8; i++) {
-		if (reportCache[i] ^ reportBuffer[i]) {
+		if (previousReport[i] ^ reportBuffer[i]) {
 			keysChanged++;
 		}
 	}
+
+    if (!keysChanged)
+      return 0;
 
 	/* Ghost-key prevention, seems to actually work! */
 	if (reportBuffer[5] ^ 0x00 && keysChanged > 1) {
@@ -286,17 +289,13 @@ static uchar scankeys(void) {
 		if ((numRows + numCols) < reportIndex) {
 			// This should imply that a ghost key event has happened, so
 			// drop the current report and repeat the last one instead
-			memcpy(reportBuffer, reportCache, sizeof(reportBuffer));
-			retval |= 1;
-			return retval;
+			memcpy(reportBuffer, previousReport, sizeof(reportBuffer));
+			return 1;
 		}
 	}
 	
-	memcpy(reportCache, reportBuffer, sizeof(reportBuffer));
-
-	/* Must have been a change at some point, since debounce is done */
-	retval |= 1;
-	return retval;
+	memcpy(previousReport, reportBuffer, sizeof(reportBuffer));
+	return 1;
 }
 
 uchar expectReport = 0;
@@ -356,7 +355,7 @@ int main(void) {
 	uchar updateNeeded = 0;
 	uchar idleCounter = 0;
 	
-	memset(reportCache, 0, sizeof(reportCache));
+	memset(previousReport, 0, sizeof(previousReport));
 
 	wdt_enable(WDTO_2S); /* Enable watchdog timer 2s */
 	hardwareInit(); /* Initialize hardware (I/O) */
