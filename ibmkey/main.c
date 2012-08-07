@@ -171,7 +171,7 @@ static uchar scankeys(void) {
 	unsigned short int activeRows, activeCols;
 	uchar reportIndex = 1; /* First available report entry is 2 */
 	uchar retval = 0;
-	uchar row, data, key, modkeys, keysChanged;
+	uchar row, data, key, keysChanged;
 	volatile uchar col, mask;
 	static uchar debounce = 5;
 
@@ -222,7 +222,7 @@ static uchar scankeys(void) {
 		return retval;
 	}
 
-	modkeys = activeRows = activeCols = keysChanged = 0;
+	activeRows = activeCols = keysChanged = 0;
 	/* Clear report buffer */
 	memset(reportBuffer, 0, sizeof(reportBuffer));
 
@@ -264,17 +264,6 @@ static uchar scankeys(void) {
 			}
 		}
 	}
-
-	/* Clear RSHIFT */
-	if (modkeys & 0x80)
-		reportBuffer[0] &= ~0x20;
-
-	/* Clear LSHIFT */
-	if (modkeys & 0x08)
-		reportBuffer[0] &= ~0x02;
-
-	/* Set other modifiers */
-	reportBuffer[0] |= modkeys & 0x77;
 
 	for (unsigned int i = 2; i < 8; i++) {
 		if (reportCache[i] ^ reportBuffer[i]) {
