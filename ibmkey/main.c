@@ -81,7 +81,7 @@ const unsigned short int modmask[16] = {
 
 /* USB report descriptor (length is defined in usbconfig.h)
    This has been changed to conform to the USB keyboard boot protocol */
-char usbHidReportDescriptor[USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH] PROGMEM = {
+const char usbHidReportDescriptor[USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH] PROGMEM = {
 	0x05, 0x01,            // USAGE_PAGE (Generic Desktop)
 	0x09, 0x06,            // USAGE (Keyboard)
 	0xa1, 0x01,            // COLLECTION (Application)
@@ -257,7 +257,7 @@ static uchar scankeys(void) {
 			}
 
 			/* Only fill buffer once */
-			if (!retval & 0x02) {
+			if (!(retval & 0x02)) {
 				memset(reportBuffer + 2, KEY_errorRollOver, sizeof(reportBuffer) - 2);
 				/* continue decoding to get modifiers */
 				retval |= 2;
