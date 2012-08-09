@@ -129,7 +129,7 @@ CINCS = -I../usbdrv
 #    -adhlns...: create assembler listing
 CFLAGS = -g$(DEBUG)
 CFLAGS += $(CDEFS) $(CINCS)
-CFLAGS += -O$(OPT)
+CFLAGS += -O$(OPT) -fno-move-loop-invariants -fno-tree-scev-cprop -fno-inline-small-functions
 CFLAGS += -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums
 CFLAGS += -Wall -Wstrict-prototypes
 CFLAGS += -Wa,-adhlns=$(<:.c=.lst)
@@ -195,7 +195,7 @@ EXTMEMOPTS =
 #    --cref:    add cross reference to  map file
 LDFLAGS = -Wl,-Map=$(TARGET).map,--cref
 LDFLAGS += $(EXTMEMOPTS)
-LDFLAGS += $(PRINTF_LIB) $(SCANF_LIB) $(MATH_LIB)
+# LDFLAGS += $(PRINTF_LIB) $(SCANF_LIB) $(MATH_LIB)
 
 
 
