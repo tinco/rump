@@ -42,7 +42,7 @@ these macros are defined, the boot loader usees them.
 /* This is the port where the USB bus is connected. When you configure it to
  * "B", the registers PORTB, PINB and DDRB will be used.
  */
-#define USB_CFG_DMINUS_BIT      4
+#define USB_CFG_DMINUS_BIT      0
 /* This is the bit number in USB_CFG_IOPORT where the USB D- line is connected.
  * This may be any bit in the port.
  */
@@ -77,14 +77,14 @@ these macros are defined, the boot loader usees them.
 /* ---------------------- feature / code size options ---------------------- */
 /* ------------------------------------------------------------------------- */
 
-#define HAVE_EEPROM_PAGED_ACCESS    1
+#define HAVE_EEPROM_PAGED_ACCESS    0
 /* If HAVE_EEPROM_PAGED_ACCESS is defined to 1, page mode access to EEPROM is
  * compiled in. Whether page mode or byte mode access is used by AVRDUDE
  * depends on the target device. Page mode is only used if the device supports
  * it, e.g. for the ATMega88, 168 etc. You can save quite a bit of memory by
  * disabling page mode EEPROM access. Costs ~ 138 bytes.
  */
-#define HAVE_EEPROM_BYTE_ACCESS     1
+#define HAVE_EEPROM_BYTE_ACCESS     0
 /* If HAVE_EEPROM_BYTE_ACCESS is defined to 1, byte mode access to EEPROM is
  * compiled in. Byte mode is only used if the device (as identified by its
  * signature) does not support page mode for EEPROM. It is required for
@@ -132,26 +132,34 @@ these macros are defined, the boot loader usees them.
 
 #ifndef __ASSEMBLER__   /* assembler cannot parse function definitions */
 
-#define JUMPER_BIT  7   /* jumper is connected to this bit in port D, active low */
-
 #ifndef MCUCSR          /* compatibility between ATMega8 and ATMega88 */
 #   define MCUCSR   MCUSR
 #endif
 
 static inline void  bootLoaderInit(void)
 {
-    PORTD |= (1 << JUMPER_BIT);     /* activate pull-up */
-    if(!(MCUCSR & (1 << EXTRF)))    /* If this was not an external reset, ignore */
-        leaveBootloader();
+    PORTA = 0xff;
+    DDRA  = 0;
+    PORTB = 0xff;
+    DDRB  = 0;
+    PORTC = 0x7f;
+    DDRC  = 0x80;
+    PORTD = 0xfa;
+    DDRD  = 0x02;
+    _delay_us(30);
+
+//    if(!(MCUCSR & (1 << EXTRF)))    /* If this was not an external reset, ignore */
+//        leaveBootloader();
     MCUCSR = 0;                     /* clear all reset flags for next time */
 }
 
 static inline void  bootLoaderExit(void)
 {
-    PORTD = 0;                      /* undo bootLoaderInit() changes */
+    DDRC = 0;                      /* undo bootLoaderInit() changes */
+    PORTC = 0xff;
 }
 
-#define bootLoaderCondition()   ((PIND & (1 << JUMPER_BIT)) == 0)
+#define BOOTLOADER_CONDITION    ((PINB & (1 << PB5)) == 0)
 
 #endif /* __ASSEMBLER__ */
 

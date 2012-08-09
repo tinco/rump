@@ -207,7 +207,7 @@ LDFLAGS += $(EXTMEMOPTS)
 # Type: avrdude -c ?
 # to get a full listing.
 #
-AVRDUDE_PROGRAMMER = usbtiny
+AVRDUDE_PROGRAMMER = usbasp
 
 # com1 = serial port. Use lpt1 to connect to parallel port.
 AVRDUDE_PORT = usb     # programmer connected to serial device
@@ -375,10 +375,11 @@ program: $(TARGET).hex $(TARGET).eep
 	$(AVRDUDE) $(AVRDUDE_FLAGS) $(AVRDUDE_WRITE_FLASH) $(AVRDUDE_WRITE_EEPROM) $(AVRDUDE_LOCKBITS)
 
 # Set fuses.
-# For ATmega16: boot flash 128 words, BODlevel=4.0V, BOD enabled,
+# For ATmega16: boot flash 1024 words, bootloader enabled,
+# BODlevel=4.0V, BOD enabled,
 # External crystal 256 CK + 4ms startup
 fuse:
-	$(AVRDUDE) $(AVRDUDE_FLAGS) -U hfuse:w:0xDF:m -U lfuse:w:0x0E:m
+	$(AVRDUDE) $(AVRDUDE_FLAGS) -U hfuse:w:0xD8:m -U lfuse:w:0x0E:m
 
 # Generate avr-gdb config/init file which does the following:
 #     define the reset signal, load the target file, connect to target, and set 
@@ -524,4 +525,3 @@ clean_list :
 .PHONY : all begin finish end sizebefore sizeafter gccversion \
 build elf hex eep lss sym coff extcoff \
 clean clean_list program debug gdb-config
-

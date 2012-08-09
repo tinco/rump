@@ -14,20 +14,21 @@
 #     make flash   # to load the boot loader into flash
 #     make lock    # to protect the boot loader from overwriting
 
-F_CPU = 16000000
-DEVICE = atmega168
+F_CPU = 12000000
+DEVICE = atmega16
 # BOOTLOADER_ADDRESS is 1800 for 8k devices, 3800 for 16k and 7800 for 32k.
 BOOTLOADER_ADDRESS = 3800
-FUSEOPT = $(FUSEOPT_168)
+FUSEOPT = $(FUSEOPT_16)
 LOCKOPT = -U lock:w:0x2f:m
 
-PROGRAMMER = -c stk500v2 -P avrdoper
+PROGRAMMER = -c usbtiny
 # PROGRAMMER contains AVRDUDE options to address your programmer
 
 FUSEOPT_8 = -U hfuse:w:0xc0:m -U lfuse:w:0x9f:m
 FUSEOPT_88 = -U hfuse:w:0xd6:m -U lfuse:w:0xdf:m -U efuse:w:0x00:m
 FUSEOPT_168 = -U hfuse:w:0xd6:m -U lfuse:w:0xdf:m -U efuse:w:0x00:m
 FUSEOPT_328 = -U lfuse:w:0xf7:m -U hfuse:w:0xda:m -U efuse:w:0x03:m
+FUSEOPT_16 = -U hfuse:w:0xd8:m -U lfuse:w:0x0e:m
 # You may have to change the order of these -U commands.
 
 #---------------------------------------------------------------------
@@ -106,10 +107,10 @@ CC = avr-gcc
 # Options:
 DEFINES = #-DDEBUG_LEVEL=2
 # Remove the -fno-* options when you use gcc 3, it does not understand them
-CFLAGS = -Wall -Os -fno-move-loop-invariants -fno-tree-scev-cprop -fno-inline-small-functions -I. -mmcu=$(DEVICE) -DF_CPU=$(F_CPU) $(DEFINES)
+CFLAGS = -Wall -Os -fno-move-loop-invariants -fno-tree-scev-cprop -fno-inline-small-functions -I. -I../.. -mmcu=$(DEVICE) -DF_CPU=$(F_CPU) $(DEFINES)
 LDFLAGS = -Wl,--relax,--gc-sections -Wl,--section-start=.text=$(BOOTLOADER_ADDRESS)
 
-OBJECTS =  usbdrv/usbdrvasm.o usbdrv/oddebug.o main.o
+OBJECTS =  ../../usbdrv/usbdrvasm.o ../../usbdrv/oddebug.o main.o
 
 # symbolic targets:
 all: main.hex
@@ -143,7 +144,7 @@ read_fuses:
 	$(UISP) --rd_fuses
 
 clean:
-	rm -f main.hex main.bin *.o usbdrv/*.o main.s usbdrv/oddebug.s usbdrv/usbdrv.s
+	rm -f main.hex main.bin *.o ../../usbdrv/*.o main.s ../../usbdrv/oddebug.s ../../usbdrv/usbdrv.s
 
 # file targets:
 main.bin:	$(OBJECTS)
