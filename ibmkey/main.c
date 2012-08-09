@@ -273,8 +273,8 @@ static uchar scankeys(void) {
 		}
 	}
 
-    if (!keysChanged)
-      return 0;
+	if (!keysChanged)
+		return 0;
 
 	/* Ghost-key prevention, seems to actually work! */
 	if (reportBuffer[5] && keysChanged > 1) {
@@ -395,7 +395,7 @@ int main(void) {
 			}
 		}
 
-	/* If an update is needed, send the report */
+		/* If an update is needed, send the report */
 		if(updateNeeded && usbInterruptIsReady()) {
 			updateNeeded = 0;
 			usbSetInterrupt(reportBuffer, sizeof(reportBuffer));
