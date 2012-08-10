@@ -71,14 +71,6 @@
 #define LED_KANA    0x10
 
 
-/* Originally used as a mask for the modifier bits, but now also
-   used for other x -> 2^x conversions (lookup table). */
-const unsigned short int modmask[16] = {
-	0x0001, 0x0002, 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080,
-	0x0100, 0x0200, 0x0400, 0x0800, 0x1000, 0x2000, 0x4000, 0x8000
-};
-
-
 /* USB report descriptor (length is defined in usbconfig.h)
    This has been changed to conform to the USB keyboard boot protocol */
 const char usbHidReportDescriptor[USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH] PROGMEM = {
@@ -128,27 +120,28 @@ static uchar protocolVer = 1;    /* 0 is boot protocol, 1 is report protocol */
 static void hardwareInit(void) {
 	/*
 	 * Theory of operation:
-	 * Initially, all keyboard scan keys are set as inputs, but with
-	 * pullups.  This causes them to be "weak" +5 outputs.
-	 * To scan, we set one line as a low output, causing it to "win"
-	 * over the weak outputs.
+	 * Initially, all keyboard scan columns are set as inputs, but with
+	 * pullups.  This causes them to be "weak" +5 outputs.  To scan, we set
+	 * one row as a low output (with other rows being inputs with no
+	 * pullups), causing it to "win" over the weak outputs.
 	 */
-	PORTA = 0xFF;   /* Port A = J4 pins 1-8 - enable pull-up */
+	PORTA = 0x00;   /* Port A = J4 pins 1-8 - no pull-up */
 	DDRA  = 0x00;   /* Port A is input */
 
 	PORTB = 0xFF;   /* Port B = J3 pins 1-8 - enable pull-up */
 	DDRB  = 0x00;   /* Port B is input */
 
-	PORTC = 0xFF;   /* Port C = J4 pins 9-16 - enable pull-up */
+	PORTC = 0x00;   /* Port C = J4 pins 9-16 - no pull-up */
 	DDRC  = 0x00;   /* Port C is input */
 
-	PORTD = 0x40;   /* 0100 0000 bin: LED on PD6 */
-	DDRD  = 0x45;   /* 0100 0101 bin: these pins are for USB output */
+	/* PORTD: USB I/O on PD0/PD2, and pull up everything else */
+	PORTD = 0xfa;   /* 1111 1010 bin: USB reset on PD0 / PD2 */
+	DDRD  = 0x05;   /* 0000 0101 bin: these pins are for USB output */
 
 	/* USB Reset by device only required on Watchdog Reset */
-	_delay_us(11);   /* delay >10ms for USB reset */
+	_delay_ms(10);   /* delay >10ms for USB reset */
 
-	DDRD = 0x40;    /* 0100 0000 bin: remove USB reset condition */
+	DDRD = 0x00;    /* 0000 0000 bin: remove USB reset condition */
 	/* configure timer 0 for a rate of 12M/(1024 * 256) = 45.78 Hz (~22ms) */
 	TCCR0 = 5;      /* timer 0 prescaler: 1024 */
 }
@@ -167,37 +160,31 @@ static void setLED(int on) {
    if a key change has been found, a new report is generated, and the
    function returns true to signal the transfer of the report. */
 static uchar scankeys(void) {
-	unsigned short int activeRows, activeCols;
+	unsigned short activeRows;
+	uchar activeCols;
 	uchar reportIndex = 1; /* First available report entry is 2 */
-	uchar row, data, key, keysChanged;
-	volatile uchar col, mask;
+	uchar keysChanged;
+	uchar col, mask;
 	static uchar debounce = 5;
 
 	/* Scan all rows */
-	for (row = 0; row < NUMROWS; ++row) {
-		// Load the scan byte mask from modmask
-		data = modmask[row & 7];
+	for (uchar row = 0; row < NUMROWS; ++row) {
+		uchar mask = 1<<(row&7);
 
 		switch (row) {
 			case 0x0:
-				// Port C to weak pullups
 				DDRC  = 0x00;
-				PORTC = 0xFF;
 				// fall through
 			case 0x1 ... 0x7:
 				// Scan on A
-				DDRA = data;
-				PORTA = ~data;
+				DDRA = mask;
 				break;
 			case 0x8:
-				// Port A to weak pullups
 				DDRA  = 0x00;
-				PORTA = 0xFF;
 				// fall through
 			case 0x9 ... 0xF:
 				// Scan on C
-				DDRC = data;
-				PORTC = ~data;
+				DDRC = mask;
 				break;
 		}
 
@@ -205,7 +192,7 @@ static uchar scankeys(void) {
 		_delay_us(30);
 
 		// Read column output on B.
-		data = PINB;
+		uchar data = PINB;
 
 		/* If a change was detected, activate debounce counter */
 		if (data != bitbuf[row]) {
@@ -215,6 +202,8 @@ static uchar scankeys(void) {
 		/* Store the result */
 		bitbuf[row] = data;
 	}
+
+	DDRC = 0x00;
 
 	/* Count down, but avoid underflow */
 	if (debounce > 1) {
@@ -227,25 +216,25 @@ static uchar scankeys(void) {
 	memset(reportBuffer, 0, sizeof(reportBuffer));
 
 	/* Process all rows for key-codes */
-	for (row = 0; row < NUMROWS; ++row) {
+	for (uchar row = 0; row < NUMROWS; ++row) {
 		/* Anything on this row? - if not, skip it */
 		if (0xFF == bitbuf[row]) { continue; }
 
 		/* Restore buffer */
-		data = bitbuf[row];
+		uchar data = bitbuf[row];
 
 		for (col = 0, mask = 1; col < 8; ++col, mask <<= 1) {
 			/* If no key detected, jump to the next column */
 			if (data & mask) { continue; }
 
 			/* Read keyboard map */
-			key = pgm_read_byte(&keymap[row][col]);
-			activeRows |= modmask[row];
-			activeCols |= modmask[col];
+			uchar key = pgm_read_byte(&keymap[row][col]);
+			activeRows |= 1<<row;
+			activeCols |= mask; // mask === 1<<col
 
 			/* Is this a modifier key? */
 			if (key > KEY_Modifiers) {
-				reportBuffer[0] |= modmask[key - (KEY_Modifiers + 1)];
+				reportBuffer[0] |= 1<<(key - (KEY_Modifiers + 1));
 				continue;
 			}
 
@@ -264,7 +253,7 @@ static uchar scankeys(void) {
 		}
 	}
 
-	for (unsigned int i = 0; i < 8; i++) {
+	for (uchar i = 0; i < 8; i++) {
 		if (previousReport[i] != reportBuffer[i]) {
 			keysChanged++;
 		}
