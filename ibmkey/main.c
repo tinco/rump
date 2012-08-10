@@ -156,6 +156,8 @@ static void setLED(int on) {
 }
 #endif
 
+#define rol(x) (((x)<<1)|(((x)&0x80)>>7))
+
 /* This function scans the entire keyboard, debounces the keys, and
    if a key change has been found, a new report is generated, and the
    function returns true to signal the transfer of the report. */
@@ -164,27 +166,23 @@ static uchar scankeys(void) {
 	uchar activeCols;
 	uchar reportIndex = 1; /* First available report entry is 2 */
 	uchar keysChanged;
-	uchar col, mask;
 	static uchar debounce = 5;
 
 	/* Scan all rows */
-	for (uchar row = 0; row < NUMROWS; ++row) {
-		uchar mask = 1<<(row&7);
+	for (uchar row = 0, rowmask = 1; row < NUMROWS; ++row,
+             rowmask = rol(rowmask)) {
 
 		switch (row) {
-			case 0x0:
-				DDRC  = 0x00;
-				// fall through
-			case 0x1 ... 0x7:
+			case 0x0 ... 0x7:
 				// Scan on A
-				DDRA = mask;
+				DDRA = rowmask;
 				break;
 			case 0x8:
 				DDRA  = 0x00;
 				// fall through
 			case 0x9 ... 0xF:
 				// Scan on C
-				DDRC = mask;
+				DDRC = rowmask;
 				break;
 		}
 
@@ -216,21 +214,23 @@ static uchar scankeys(void) {
 	memset(reportBuffer, 0, sizeof(reportBuffer));
 
 	/* Process all rows for key-codes */
-	for (uchar row = 0; row < NUMROWS; ++row) {
+	unsigned rowmask;
+	uchar row;
+	for (row = 0, rowmask = 1; row < NUMROWS; ++row, rowmask <<= 1) {
 		/* Anything on this row? - if not, skip it */
 		if (0xFF == bitbuf[row]) { continue; }
 
 		/* Restore buffer */
 		uchar data = bitbuf[row];
 
-		for (col = 0, mask = 1; col < 8; ++col, mask <<= 1) {
+		for (uchar col = 0, colmask = 1; col < 8; ++col, colmask <<= 1) {
 			/* If no key detected, jump to the next column */
-			if (data & mask) { continue; }
+			if (data & colmask) { continue; }
 
 			/* Read keyboard map */
 			uchar key = pgm_read_byte(&keymap[row][col]);
-			activeRows |= 1<<row;
-			activeCols |= mask; // mask === 1<<col
+			activeRows |= rowmask;
+			activeCols |= colmask;
 
 			/* Is this a modifier key? */
 			if (key > KEY_Modifiers) {
