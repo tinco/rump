@@ -46,7 +46,7 @@
  *  2 (white)  DATA-
  *  3 (green)  DATA+
  *  4 (black)  GND
- *    
+ *
  *
  *                       +---[1K5r]---- +5V
  *                       |
@@ -57,7 +57,7 @@
  *      (D+)-------|-----+-------------[68r]------- PD2/INT0
  *                 |     |
  *                 _     _
- *                 ^     ^  2 x 3.6V 
+ *                 ^     ^  2 x 3.6V
  *                 |     |  zener to GND
  *                 |     |
  *                GND   GND
@@ -146,7 +146,7 @@ static void hardwareInit(void) {
 	DDRD  = 0x45;   /* 0100 0101 bin: these pins are for USB output */
 
 	/* USB Reset by device only required on Watchdog Reset */
-	_delay_us(11);   /* delay >10ms for USB reset */ 
+	_delay_us(11);   /* delay >10ms for USB reset */
 
 	DDRD = 0x40;    /* 0100 0000 bin: remove USB reset condition */
 	/* configure timer 0 for a rate of 12M/(1024 * 256) = 45.78 Hz (~22ms) */
@@ -209,11 +209,11 @@ static uchar scankeys(void) {
 
 		/* If a change was detected, activate debounce counter */
 		if (data != bitbuf[row]) {
-			debounce = 10; 
+			debounce = 10;
 		}
 
 		/* Store the result */
-		bitbuf[row] = data; 
+		bitbuf[row] = data;
 	}
 
 	/* Count down, but avoid underflow */
@@ -253,7 +253,7 @@ static uchar scankeys(void) {
 			if (++reportIndex < sizeof(reportBuffer)) {
 				/* Set next available entry */
 				reportBuffer[reportIndex] = key;
- 				continue;
+				continue;
 			}
 
 			/* Only fill buffer once */
@@ -292,7 +292,7 @@ static uchar scankeys(void) {
 			return 1;
 		}
 	}
-	
+
 	memcpy(previousReport, reportBuffer, sizeof(reportBuffer));
 	return 1;
 }
@@ -353,7 +353,7 @@ uchar usbFunctionWrite(uchar *data, uchar len) {
 int main(void) {
 	uchar updateNeeded = 0;
 	uchar idleCounter = 0;
-	
+
 	memset(previousReport, 0, sizeof(previousReport));
 	memset(bitbuf, 0xff, sizeof(bitbuf));
 
