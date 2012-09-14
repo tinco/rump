@@ -335,7 +335,6 @@ int main(void) {
 
 	/* Main loop */
 	for (;;) {
-		//idleRate = 125;
 		/* Reset the watchdog */
 		wdt_reset();
 		/* Poll the USB stack */
