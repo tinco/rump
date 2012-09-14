@@ -156,8 +156,6 @@ static void setLED(int on) {
 }
 #endif
 
-#define rol(x) (((x)<<1)|(((x)&0x80)>>7))
-
 /* This function scans the entire keyboard, debounces the keys, and
    if a key change has been found, a new report is generated, and the
    function returns true to signal the transfer of the report. */
@@ -165,51 +163,41 @@ static uchar scankeys(void) {
 	unsigned short activeRows;
 	uchar activeCols;
 	uchar reportIndex = 1; /* First available report entry is 2 */
-	uchar keysChanged;
 	static uchar debounce = 5;
 
-	/* Scan all rows */
-	for (uchar row = 0, rowmask = 1; row < NUMROWS; ++row,
-             rowmask = rol(rowmask)) {
-
-		switch (row) {
-			case 0x0 ... 0x7:
-				// Scan on A
-				DDRA = rowmask;
-				break;
-			case 0x8:
-				DDRA  = 0x00;
-				// fall through
-			case 0x9 ... 0xF:
-				// Scan on C
-				DDRC = rowmask;
-				break;
-		}
-
-		/* Used to be small loop, but the compiler optimized it away ;-) */
+	DDRB = 0;
+	PORTA = 0;
+	PORTB = 0xFF;
+	/* Scan first eight rows: PORTA->matrix->PINB */
+	for (uchar row = 0, rowmask = 1; row < 8; ++row, rowmask <<= 1) {
+		DDRA = rowmask;
 		_delay_us(30);
-
-		// Read column output on B.
 		uchar data = PINB;
-
-		/* If a change was detected, activate debounce counter */
-		if (data != bitbuf[row]) {
-			debounce = 10;
-		}
-
-		/* Store the result */
+		if (data != bitbuf[row]) debounce = 10;
 		bitbuf[row] = data;
 	}
+	DDRA = 0x00;
 
+	/* Scan last eight rows: PORTC->matrix->PINB */
+	for (uchar row = 8, rowmask = 1; row < 16; ++row, rowmask <<= 1) {
+		DDRC = rowmask;
+		_delay_us(30);
+		uchar data = PINB;
+		if (data != bitbuf[row]) debounce = 10;
+		bitbuf[row] = data;
+	}
 	DDRC = 0x00;
 
-	/* Count down, but avoid underflow */
-	if (debounce > 1) {
-		debounce--;
+	if (debounce == 0) // Nothing's changed.
 		return 0;
+
+	if (debounce > 0) { // Something's changed, but we're still settling.
+		if (--debounce)
+			return 0;
 	}
 
-	activeRows = activeCols = keysChanged = 0;
+	activeRows = 0;
+	activeCols = 0;
 	/* Clear report buffer */
 	memset(reportBuffer, 0, sizeof(reportBuffer));
 
@@ -217,11 +205,10 @@ static uchar scankeys(void) {
 	unsigned rowmask;
 	uchar row;
 	for (row = 0, rowmask = 1; row < NUMROWS; ++row, rowmask <<= 1) {
-		/* Anything on this row? - if not, skip it */
-		if (0xFF == bitbuf[row]) { continue; }
-
-		/* Restore buffer */
 		uchar data = bitbuf[row];
+
+		/* Anything on this row? - if not, skip it */
+		if (0xFF == data) { continue; }
 
 		for (uchar col = 0, colmask = 1; col < 8; ++col, colmask <<= 1) {
 			/* If no key detected, jump to the next column */
@@ -253,17 +240,8 @@ static uchar scankeys(void) {
 		}
 	}
 
-	for (uchar i = 0; i < 8; i++) {
-		if (previousReport[i] != reportBuffer[i]) {
-			keysChanged++;
-		}
-	}
-
-	if (!keysChanged)
-		return 0;
-
 	/* Ghost-key prevention, seems to actually work! */
-	if (reportBuffer[5] && keysChanged > 1) {
+	if (reportBuffer[5]) {
 		uchar numRows, numCols;
 
 		for (numRows = 0; activeRows; numRows++) {
@@ -343,6 +321,7 @@ int main(void) {
 	uchar updateNeeded = 0;
 	uchar idleCounter = 0;
 
+	memset(reportBuffer, 0, sizeof(reportBuffer));
 	memset(previousReport, 0, sizeof(previousReport));
 	memset(bitbuf, 0xff, sizeof(bitbuf));
 
@@ -356,6 +335,7 @@ int main(void) {
 
 	/* Main loop */
 	for (;;) {
+		//idleRate = 125;
 		/* Reset the watchdog */
 		wdt_reset();
 		/* Poll the USB stack */
