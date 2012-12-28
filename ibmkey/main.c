@@ -109,7 +109,7 @@ const char usbHidReportDescriptor[USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH] PROGMEM 
 };
 
 /* This buffer holds the last values of the scanned keyboard matrix */
-static uchar bitbuf[NUMROWS];
+static unsigned short bitbuf[8];
 
 /* The ReportBuffer contains the USB report sent to the PC */
 static uchar reportBuffer[8];    /* buffer for HID reports */
@@ -125,13 +125,13 @@ static void hardwareInit(void) {
 	 * one row as a low output (with other rows being inputs with no
 	 * pullups), causing it to "win" over the weak outputs.
 	 */
-	PORTA = 0x00;   /* Port A = J4 pins 1-8 - no pull-up */
+	PORTA = 0xFF;   /* Port A = J4 pins 1-8 - enable pull-up */
 	DDRA  = 0x00;   /* Port A is input */
 
-	PORTB = 0xFF;   /* Port B = J3 pins 1-8 - enable pull-up */
+	PORTB = 0x00;   /* Port B = J3 pins 1-8 - no pull-up */
 	DDRB  = 0x00;   /* Port B is input */
 
-	PORTC = 0x00;   /* Port C = J4 pins 9-16 - no pull-up */
+	PORTC = 0xFF;   /* Port C = J4 pins 9-16 - enable pull-up */
 	DDRC  = 0x00;   /* Port C is input */
 
 	/* PORTD: USB I/O on PD0/PD2, and pull up everything else */
@@ -165,28 +165,15 @@ static uchar scankeys(void) {
 	uchar reportIndex = 1; /* First available report entry is 2 */
 	static uchar debounce = 5;
 
-	DDRB = 0;
-	PORTA = 0;
-	PORTB = 0xFF;
-	/* Scan first eight rows: PORTA->matrix->PINB */
-	for (uchar row = 0, rowmask = 1; row < 8; ++row, rowmask <<= 1) {
-		DDRA = rowmask;
+	/* Scan all eight columns: PORTB->matrix->PINA|PINC */
+	for (uchar col = 0, colmask = 1; col < 8; ++col, colmask <<= 1) {
+		DDRB = colmask;
 		_delay_us(30);
-		uchar data = PINB;
-		if (data != bitbuf[row]) debounce = 10;
-		bitbuf[row] = data;
+		unsigned short data = PINA | (PINC<<8);
+		if (data != bitbuf[col]) debounce = 10;
+		bitbuf[col] = data;
 	}
-	DDRA = 0x00;
-
-	/* Scan last eight rows: PORTC->matrix->PINB */
-	for (uchar row = 8, rowmask = 1; row < 16; ++row, rowmask <<= 1) {
-		DDRC = rowmask;
-		_delay_us(30);
-		uchar data = PINB;
-		if (data != bitbuf[row]) debounce = 10;
-		bitbuf[row] = data;
-	}
-	DDRC = 0x00;
+	DDRB = 0x00;
 
 	if (debounce == 0) // Nothing's changed.
 		return 0;
@@ -202,22 +189,24 @@ static uchar scankeys(void) {
 	memset(reportBuffer, 0, sizeof(reportBuffer));
 
 	/* Process all rows for key-codes */
-	unsigned rowmask;
+	unsigned short rowmask;
 	uchar row;
-	for (row = 0, rowmask = 1; row < NUMROWS; ++row, rowmask <<= 1) {
-		uchar data = bitbuf[row];
+	for (uchar col = 0, colmask = 1; col < 8; ++col, colmask <<= 1) {
+		unsigned short data = bitbuf[col];
 
-		/* Anything on this row? - if not, skip it */
-		if (0xFF == data) { continue; }
+		/* Anything on this column? - if not, skip it */
+		if (0xFFFF == data) { continue; }
 
-		for (uchar col = 0, colmask = 1; col < 8; ++col, colmask <<= 1) {
+		for (row = 0, rowmask = 1; row < NUMROWS; ++row, rowmask <<= 1, data >>= 1) {
 			/* If no key detected, jump to the next column */
-			if (data & colmask) { continue; }
+			if (data & 1) { continue; }
+
+			activeRows |= rowmask;
+			activeCols |= colmask;
 
 			/* Read keyboard map */
 			uchar key = pgm_read_byte(&keymap[row][col]);
-			activeRows |= rowmask;
-			activeCols |= colmask;
+                        if (key == 0) { continue; }
 
 			/* Is this a modifier key? */
 			if (key > KEY_Modifiers) {
@@ -229,11 +218,7 @@ static uchar scankeys(void) {
 			if (++reportIndex < sizeof(reportBuffer)) {
 				/* Set next available entry */
 				reportBuffer[reportIndex] = key;
-				continue;
-			}
-
-			/* Only fill buffer once */
-			if (reportIndex == sizeof(reportBuffer)) {
+			} else if (reportIndex == sizeof(reportBuffer)) {
 				memset(reportBuffer + 2, KEY_errorRollOver, sizeof(reportBuffer) - 2);
 				/* continue decoding to get modifiers */
 			}
@@ -253,15 +238,20 @@ static uchar scankeys(void) {
 		}
 
 		if ((numRows + numCols) < reportIndex) {
-			// This should imply that a ghost key event has happened, so
-			// drop the current report and repeat the last one instead
-			memcpy(reportBuffer, previousReport, sizeof(reportBuffer));
-			return 1;
+			// This should imply that a ghost key event has
+			// happened, so drop the current report
+			return 0;
 		}
 	}
 
-	memcpy(previousReport, reportBuffer, sizeof(reportBuffer));
-	return 1;
+	uchar changed = 0;
+	for (uchar i = 0; i < sizeof(reportBuffer); i++) {
+		if (previousReport[i] != reportBuffer[i]) {
+			changed = 1;
+			previousReport[i] = reportBuffer[i];
+		}
+	}
+	return changed;
 }
 
 uchar expectReport = 0;
