@@ -149,11 +149,11 @@ const unsigned char keymap[NUMROWS][8] PROGMEM = { // IBM Model M keymap
     { KEY_G,       KEY_T,      KEY_5,     KEY_4,      KEY_R,      KEY_F,       KEY_V,       KEY_B },        // row  6
     { KEY_F5,      KEY_bckspc, KEY_F9,    KEY_F10,    0,          KEY_bckslsh, KEY_enter,   KEY_spc },      // row  7
     { KEY_H,       KEY_Y,      KEY_6,     KEY_7,      KEY_U,      KEY_J,       KEY_M,       KEY_N },        // row  8
-    //  These rows are in reverse order because PORTC is wired backwards.
-    { MOD_LALT,    0,          0,         KEY_PrtScr, KEY_scrlck, 0,           0,           MOD_RALT },     // row 16
-    { KEY_uarr,    0,          KEY_home,  KEY_end,    KEY_KPplus, KEY_KPenter, KEY_break,   KEY_larr },     // row 15
-    { KEY_KPcomma, KEY_KP6,    KEY_pgup,  KEY_pgdn,   KEY_KP9,    KEY_KP3,     KEY_KPast,   KEY_KPminus },  // row 14
+    //  These rows are in a mixed up order because PORTC is wired for routing convenience
     { KEY_KP0,     KEY_KP5,    KEY_ins,   KEY_F12,    KEY_KP8,    KEY_KP2,     KEY_KPslash, KEY_rarr },     // row 13
+    { KEY_KPcomma, KEY_KP6,    KEY_pgup,  KEY_pgdn,   KEY_KP9,    KEY_KP3,     KEY_KPast,   KEY_KPminus },  // row 14
+    { KEY_uarr,    0,          KEY_home,  KEY_end,    KEY_KPplus, KEY_KPenter, KEY_break,   KEY_larr },     // row 15
+    { MOD_LALT,    0,          0,         KEY_PrtScr, KEY_scrlck, 0,           0,           MOD_RALT },     // row 16
     { 0,           KEY_KP4,    KEY_del,   KEY_F11,    KEY_KP7,    KEY_KP1,     KEY_numlock, KEY_darr },     // row 12
     { KEY_ping,    KEY_lbr,    KEY_minus, KEY_0,      KEY_P,      KEY_smcol,   0,           KEY_slash },    // row 11
     { 0,           KEY_F7,     KEY_F8,    KEY_9,      KEY_O,      KEY_L,       KEY_dot,     0 },            // row 10

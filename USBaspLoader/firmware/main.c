@@ -308,15 +308,18 @@ int __attribute__((noreturn)) main(void)
     GICR = (1 << IVSEL); /* move interrupts to boot flash section */
 #endif
     if(bootLoaderCondition()){
-        uchar i = 0, j = 0;
+        uint exit_timer = 0;
+        uint blink_timer = 0;
         initForUsbConnectivity();
         for(;;) {
             usbPoll();
+            if(--blink_timer == 0){
+                bootLoaderBlink();
+            }
 #if BOOTLOADER_CAN_EXIT
             if(requestBootLoaderExit){
-                if(--i == 0){
-                    if(--j == 0)
-                        break;
+                if(--exit_timer == 0){
+                    break;
                 }
             }
 #endif

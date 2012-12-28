@@ -144,13 +144,20 @@ static inline void  bootLoaderInit(void)
     DDRB  = 0;
     PORTC = 0x7f;
     DDRC  = 0x80;
-    PORTD = 0xfa;
-    DDRD  = 0x02;
+    PORTD = 0x1a;
+    DDRD  = 0x22;
     _delay_us(30);
 
 //    if(!(MCUCSR & (1 << EXTRF)))    /* If this was not an external reset, ignore */
 //        leaveBootloader();
     MCUCSR = 0;                     /* clear all reset flags for next time */
+}
+
+/* Blink an LED to indicate bootloader is active */
+static inline void  bootLoaderBlink(void)
+{
+    /* Toggle all three LEDs */
+    DDRD ^= 0xe0;
 }
 
 static inline void  bootLoaderExit(void)
@@ -159,7 +166,7 @@ static inline void  bootLoaderExit(void)
     PORTC = 0xff;
 }
 
-#define BOOTLOADER_CONDITION    ((PINB & (1 << PB5)) == 0)
+#define BOOTLOADER_CONDITION    ((PINB & (1 << PB2)) == 0)
 
 #endif /* __ASSEMBLER__ */
 

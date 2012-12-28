@@ -134,8 +134,9 @@ static void hardwareInit(void) {
 	PORTC = 0xFF;   /* Port C = J4 pins 9-16 - enable pull-up */
 	DDRC  = 0x00;   /* Port C is input */
 
-	/* PORTD: USB I/O on PD0/PD2, and pull up everything else */
-	PORTD = 0xfa;   /* 1111 1010 bin: USB reset on PD0 / PD2 */
+	/* PORTD: USB I/O on PD0/PD2, LED current source on PD5..PD7, pull up
+         * others which are N/C */
+	PORTD = 0x1a;   /* 0001 1010 bin: USB reset on PD0 / PD2 */
 	DDRD  = 0x05;   /* 0000 0101 bin: these pins are for USB output */
 
 	/* USB Reset by device only required on Watchdog Reset */
@@ -145,16 +146,6 @@ static void hardwareInit(void) {
 	/* configure timer 0 for a rate of 12M/(1024 * 256) = 45.78 Hz (~22ms) */
 	TCCR0 = 5;      /* timer 0 prescaler: 1024 */
 }
-
-#if 0
-static void setLED(int on) {
-	if (on) {
-		PORTD &= ~0x40;
-	} else {
-		PORTD |= 0x40;
-	}
-}
-#endif
 
 /* This function scans the entire keyboard, debounces the keys, and
    if a key change has been found, a new report is generated, and the
@@ -166,7 +157,10 @@ static uchar scankeys(void) {
 	static uchar debounce = 5;
 
 	/* Scan all eight columns: PORTB->matrix->PINA|PINC */
-	for (uchar col = 0, colmask = 1; col < 8; ++col, colmask <<= 1) {
+        /* Note: PORTB is wired backwards as well in the surface-mount design at
+         * http://www.circuits.io/circuits/923, so the scanned column mask is
+         * now reversed as well */
+	for (uchar col = 0, colmask = 0x80; col < 8; ++col, colmask >>= 1) {
 		DDRB = colmask;
 		_delay_us(30);
 		unsigned short data = PINA | (PINC<<8);
@@ -294,14 +288,25 @@ uchar usbFunctionWrite(uchar *data, uchar len) {
 	if ((expectReport) && (len == 1)) {
 		/* Get the state of all 5 LEDs */
 		LEDstate = data[0];
-		/* Check state of CAPS lock LED */
-/*
-		if (LEDstate & LED_NUM) {
-			PORTD |= 0x40;
-		} else {
-			PORTD &= ~0x40;
-		}
- */
+#if 0
+		/* Our LEDs happened to be mapped on PD5..PD7 corresponding to
+		 * LEDstate0..2; setting the direction register to an output
+		 * will turn them on accordingly */
+		DDRD = (DDRD & 0x1f) | ((LEDstate&7) << 5);
+#else
+		// my hacked-up prototype boards swapped some things around
+		// num lock - PD7
+		// scroll lock - PD6
+		// caps lock - PD5
+		uchar new_DDRD = DDRD & 0x1f;
+		if (LEDstate & LED_NUM)
+			new_DDRD |= 1<<7;
+		if (LEDstate & LED_CAPS)
+			new_DDRD |= 1<<5;
+		if (LEDstate & LED_SCROLL)
+			new_DDRD |= 1<<6;
+                DDRD = new_DDRD;
+#endif
 	}
 	expectReport = 0;
 	return 0x01;
