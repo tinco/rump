@@ -310,7 +310,7 @@ int __attribute__((noreturn)) main(void)
     if(bootLoaderCondition()){
         uchar i = 0, j = 0;
         initForUsbConnectivity();
-        do{
+        for(;;) {
             usbPoll();
 #if BOOTLOADER_CAN_EXIT
             if(requestBootLoaderExit){
@@ -320,7 +320,7 @@ int __attribute__((noreturn)) main(void)
                 }
             }
 #endif
-        }while(bootLoaderCondition());  /* main event loop */
+        }  /* main event loop */
     }
     leaveBootloader();
 }
