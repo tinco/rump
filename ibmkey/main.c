@@ -46,7 +46,7 @@
  *  2 (white)  DATA-
  *  3 (green)  DATA+
  *  4 (black)  GND
- *    
+ *
  *
  *                       +---[1K5r]---- +5V
  *                       |
@@ -57,7 +57,7 @@
  *      (D+)-------|-----+-------------[68r]------- PD2/INT0
  *                 |     |
  *                 _     _
- *                 ^     ^  2 x 3.6V 
+ *                 ^     ^  2 x 3.6V
  *                 |     |  zener to GND
  *                 |     |
  *                GND   GND
@@ -81,7 +81,7 @@ const unsigned short int modmask[16] = {
 
 /* USB report descriptor (length is defined in usbconfig.h)
    This has been changed to conform to the USB keyboard boot protocol */
-char usbHidReportDescriptor[USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH] PROGMEM = {
+const char usbHidReportDescriptor[USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH] PROGMEM = {
 	0x05, 0x01,            // USAGE_PAGE (Generic Desktop)
 	0x09, 0x06,            // USAGE (Keyboard)
 	0xa1, 0x01,            // COLLECTION (Application)
@@ -149,7 +149,7 @@ static void hardwareInit(void) {
 	DDRD  = 0x45;   /* 0100 0101 bin: these pins are for USB output */
 
 	/* USB Reset by device only required on Watchdog Reset */
-	_delay_us(11);   /* delay >10ms for USB reset */ 
+	_delay_us(11);   /* delay >10ms for USB reset */
 
 	DDRD = 0x40;    /* 0100 0000 bin: remove USB reset condition */
 	/* configure timer 0 for a rate of 12M/(1024 * 256) = 45.78 Hz (~22ms) */
@@ -167,7 +167,7 @@ static void setLED(int on) {
 /* This function scans the entire keyboard, debounces the keys, and
    if a key change has been found, a new report is generated, and the
    function returns true to signal the transfer of the report. */
-static uchar scankeys(void) {   
+static uchar scankeys(void) {
 	unsigned short int activeRows, activeCols;
 	uchar reportIndex = 1; /* First available report entry is 2 */
 	uchar retval = 0;
@@ -209,11 +209,11 @@ static uchar scankeys(void) {
 
 		/* If a change was detected, activate debounce counter */
 		if (data ^ bitbuf[row]) {
-			debounce = 10; 
+			debounce = 10;
 		}
 
 		/* Store the result */
-		bitbuf[row] = data; 
+		bitbuf[row] = data;
 	}
 
 	/* Count down, but avoid underflow */
@@ -302,7 +302,7 @@ static uchar scankeys(void) {
 			return retval;
 		}
 	}
-	
+
 	memcpy(reportCache, reportBuffer, sizeof(reportBuffer));
 
 	/* Must have been a change at some point, since debounce is done */
@@ -366,7 +366,7 @@ uchar usbFunctionWrite(uchar *data, uchar len) {
 int main(void) {
 	uchar updateNeeded = 0;
 	uchar idleCounter = 0;
-	
+
 	memset(reportCache, 0, sizeof(reportCache));
 
 	wdt_enable(WDTO_2S); /* Enable watchdog timer 2s */
